@@ -14,7 +14,13 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-br" className={`${GeistSans.variable} dark antialiased`}>
-      <body>{children}</body>
+      <body>
+        <div className="flex min-h-screen flex-col justify-between p-8 sm:p-20">
+          <main className="flex flex-grow flex-col items-center justify-center">
+            {children}
+          </main>
+        </div>
+      </body>
     </html>
   );
 }
