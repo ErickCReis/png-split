@@ -1,37 +1,128 @@
-import Link from "next/link";
+"use client";
 
-export default function HomePage() {
+import { FileDropzone } from "@/components/file-dropzone";
+import { UploadBox } from "@/components/upload-box";
+import {
+  type FileUploaderResult,
+  useFileUploader,
+} from "@/hooks/use-file-uploader";
+import { splitImage } from "@/utils";
+import { useEffect, useState } from "react";
+
+function ImageSplitCore(props: { fileUploaderProps: FileUploaderResult }) {
+  const {
+    imageContent,
+    imageMetadata,
+    rawFile,
+    handleFileUploadEvent,
+    cancel,
+  } = props.fileUploaderProps;
+
+  const [squareImageContent, setSquareImageContent] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (imageContent && imageMetadata) {
+      const canvas = document.createElement("canvas");
+      canvas.width = imageMetadata.width;
+      canvas.height = imageMetadata.height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      // Load and center the image
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0);
+        setSquareImageContent(canvas.toDataURL("image/png"));
+      };
+      img.src = imageContent;
+    }
+  }, [imageContent, imageMetadata]);
+
+  async function handleSplitImage() {
+    if (rawFile && imageMetadata) {
+      const images = await splitImage(rawFile, imageMetadata, 7);
+
+      const originalFileName = imageMetadata.name;
+      const fileNameWithoutExtension =
+        originalFileName.substring(0, originalFileName.lastIndexOf(".")) ||
+        originalFileName;
+
+      images.forEach((blob, index) => {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `${fileNameWithoutExtension}_${index}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+    }
+  }
+
+  if (!imageMetadata) {
+    return (
+      <UploadBox
+        title="Create square images with custom backgrounds. Fast and free."
+        subtitle="Allows pasting images from clipboard"
+        description="Upload Image"
+        accept="image/*"
+        onChange={handleFileUploadEvent}
+      />
+    );
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-      <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-        <h1 className="text-5xl font-extrabold tracking-tight text-white sm:text-[5rem]">
-          Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-        </h1>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-          <Link
-            className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-            href="https://create.t3.gg/en/usage/first-steps"
-            target="_blank"
-          >
-            <h3 className="text-2xl font-bold">First Steps →</h3>
-            <div className="text-lg">
-              Just the basics - Everything you need to know to set up your
-              database and authentication.
-            </div>
-          </Link>
-          <Link
-            className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-            href="https://create.t3.gg/en/introduction"
-            target="_blank"
-          >
-            <h3 className="text-2xl font-bold">Documentation →</h3>
-            <div className="text-lg">
-              Learn more about Create T3 App, the libraries it uses, and how to
-              deploy it.
-            </div>
-          </Link>
+    <div className="mx-auto flex max-w-2xl flex-col items-center justify-center gap-6 p-6">
+      <div className="flex w-full flex-col items-center gap-4 rounded-xl p-6">
+        {squareImageContent && (
+          <img src={squareImageContent} alt="Preview" className="mb-4" />
+        )}
+        <p className="text-lg font-medium text-white/80">
+          {imageMetadata.name}
+        </p>
+      </div>
+
+      <div className="flex gap-6 text-base">
+        <div className="flex flex-col items-center rounded-lg bg-white/5 p-3">
+          <span className="text-sm text-white/60">Original</span>
+          <span className="font-medium text-white">
+            {imageMetadata.width} × {imageMetadata.height}
+          </span>
         </div>
       </div>
-    </main>
+
+      <div className="flex gap-3">
+        <button
+          onClick={cancel}
+          className="rounded-lg bg-red-700 px-4 py-2 text-sm font-medium text-white/90 transition-colors hover:bg-red-800"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => {
+            void handleSplitImage();
+          }}
+          className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white shadow-md transition-colors duration-200 hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
+        >
+          Split
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function Page() {
+  const fileUploaderProps = useFileUploader();
+
+  return (
+    <FileDropzone
+      setCurrentFile={fileUploaderProps.handleFileUpload}
+      acceptedFileTypes={["image/*", ".jpg", ".jpeg", ".png", ".webp", ".svg"]}
+      dropText="Drop image file"
+    >
+      <ImageSplitCore fileUploaderProps={fileUploaderProps} />
+    </FileDropzone>
   );
 }
